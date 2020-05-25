@@ -1,30 +1,30 @@
-import microbit
+import RPi.GPIO as GPIO
+import time
 
-# (c) IDWizard 2017
+# (c) IDWizard 2017 - https://github.com/IDWizard/uln2003
+# (c) NNTin 2020
 # MIT License.
-
-microbit.display.off()
 
 LOW = 0
 HIGH = 1
 FULL_ROTATION = int(4075.7728395061727 / 8) # http://www.jangeox.be/2013/10/stepper-motor-28byj-48_25.html
 
 HALF_STEP = [
-    [LOW, LOW, LOW, HIGH],
-    [LOW, LOW, HIGH, HIGH],
-    [LOW, LOW, HIGH, LOW],
-    [LOW, HIGH, HIGH, LOW],
-    [LOW, HIGH, LOW, LOW],
-    [HIGH, HIGH, LOW, LOW],
-    [HIGH, LOW, LOW, LOW],
-    [HIGH, LOW, LOW, HIGH],
+    [LOW,  LOW,  LOW,  HIGH],
+    [LOW,  LOW,  HIGH, HIGH],
+    [LOW,  LOW,  HIGH, LOW ],
+    [LOW,  HIGH, HIGH, LOW ],
+    [LOW,  HIGH, LOW,  LOW ],
+    [HIGH, HIGH, LOW,  LOW ],
+    [HIGH, LOW,  LOW,  LOW ],
+    [HIGH, LOW,  LOW,  HIGH],
 ]
 
 FULL_STEP = [
- [HIGH, LOW, HIGH, LOW],
- [LOW, HIGH, HIGH, LOW],
- [LOW, HIGH, LOW, HIGH],
- [HIGH, LOW, LOW, HIGH]
+    [HIGH, LOW,  HIGH, LOW ],
+    [LOW,  HIGH, HIGH, LOW ],
+    [LOW,  HIGH, LOW,  HIGH],
+    [HIGH, LOW,  LOW,  HIGH]
 ]
 
 class Command():
@@ -45,7 +45,7 @@ class Driver():
         max_steps = sum([c.steps for c in commands])
 
         count = 0
-        while count != max_steps:
+        while count < max_steps:
             for command in commands:
                 # we want to interleave the commands
                 if command.steps > 0:
@@ -69,26 +69,49 @@ class Stepper():
         """Rotate count steps. direction = -1 means backwards"""
         for x in range(count):
             for bit in self.mode[::direction]:
-                self.pin1.write_digital(bit[0]) 
-                self.pin2.write_digital(bit[1]) 
-                self.pin3.write_digital(bit[2]) 
-                self.pin4.write_digital(bit[3]) 
-                microbit.sleep(self.delay)
+                GPIO.output(self.pin1, bit[0])
+                GPIO.output(self.pin2, bit[1])
+                GPIO.output(self.pin3, bit[2])
+                GPIO.output(self.pin4, bit[3])
+                time.sleep(self.delay/1000)
         self.reset()
         
     def reset(self):
         # Reset to 0, no holding, these are geared, you can't move them
-        self.pin1.write_digital(0) 
-        self.pin2.write_digital(0) 
-        self.pin3.write_digital(0) 
-        self.pin4.write_digital(0) 
+        GPIO.output(self.pin1, 0)
+        GPIO.output(self.pin2, 0)
+        GPIO.output(self.pin3, 0)
+        GPIO.output(self.pin4, 0)
 
 if __name__ == '__main__':
+    STEP1_IN1 = 4
+    STEP1_IN2 = 17
+    STEP1_IN3 = 27
+    STEP1_IN4 = 22
 
-    s1 = Stepper(HALF_STEP, microbit.pin16, microbit.pin15, microbit.pin14, microbit.pin13, delay=5)    
-    s2 = Stepper(HALF_STEP, microbit.pin6, microbit.pin5, microbit.pin4, microbit.pin3, delay=5)   
-    #s1.step(FULL_ROTATION)
-    #s2.step(FULL_ROTATION)
+    STEP2_IN1 = 14
+    STEP2_IN2 = 15
+    STEP2_IN3 = 18
+    STEP2_IN4 = 23
 
-    runner = Driver()
-    runner.run([Command(s1, FULL_ROTATION, 1), Command(s2, FULL_ROTATION/2, -1)])
+    GPIO.setmode(GPIO.BCM)
+
+    GPIO.setup(STEP1_IN1, GPIO.OUT)
+    GPIO.setup(STEP1_IN2, GPIO.OUT)
+    GPIO.setup(STEP1_IN3, GPIO.OUT)
+    GPIO.setup(STEP1_IN4, GPIO.OUT)
+    GPIO.setup(STEP2_IN1, GPIO.OUT)
+    GPIO.setup(STEP2_IN2, GPIO.OUT)
+    GPIO.setup(STEP2_IN3, GPIO.OUT)
+    GPIO.setup(STEP2_IN4, GPIO.OUT)
+    
+
+    s1 = Stepper(HALF_STEP, STEP1_IN1, STEP1_IN2, STEP1_IN3, STEP1_IN4, delay=1)
+    s2 = Stepper(HALF_STEP, STEP2_IN1, STEP2_IN2, STEP2_IN3, STEP2_IN4, delay=1)
+    s1.step(FULL_ROTATION)
+    s2.step(FULL_ROTATION, direction=-1)
+
+    #runner = Driver()
+    #runner.run([Command(s1, FULL_ROTATION, 1), Command(s2, FULL_ROTATION, -1)])
+
+    GPIO.cleanup()
